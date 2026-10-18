@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Strange Cave of Ali Baba — Zero-Knowledge Proofs</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#0d1117;--surface:#161b22;--card:#1c2333;--border:#30363d;
+            --text:#e6edf3;--dim:#8b949e;--gold:#d4a843;--glow:#ffd700;
+            --teal:#3fb9a0;--red:#f85149;--cave:#8a7350;--wall:#4a3520
+        }
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden}
+        .container{max-width:1100px;margin:0 auto;padding:0 24px}
+        button{font-family:inherit}
+        button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+        /* Hero */
+        .hero{text-align:center;padding:72px 24px 56px;background:linear-gradient(180deg,#131820 0%,var(--bg) 100%)}
+        .hero h1{font-family:Georgia,'Times New Roman',serif;font-size:2.7em;color:var(--gold);margin-bottom:10px;letter-spacing:-.5px}
+        .hero .subtitle{font-size:1.15em;color:var(--dim);max-width:620px;margin:0 auto}
+        .hero .credit{font-size:.82em;color:var(--dim);margin-top:14px;opacity:.65}
+
+        /* Story */
+        .story-section{padding:56px 0}
+        .story-section h2,.demo-section h2,.mapping-section h2{font-family:Georgia,serif;font-size:1.8em;color:var(--gold);text-align:center;margin-bottom:36px}
+        .chapters{display:flex;flex-direction:column;gap:20px}
+        .chapter{display:flex;gap:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px}
+        .chapter-num{flex-shrink:0;width:44px;height:44px;background:var(--gold);color:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.15em}
+        .chapter-content h3{font-family:Georgia,serif;font-size:1.15em;margin-bottom:6px}
+        .chapter-content p{color:var(--dim);font-size:1.02em}
+        .zk-badge{display:inline-block;margin-top:8px;padding:3px 11px;background:rgba(63,185,160,.11);border:1px solid rgba(63,185,160,.28);border-radius:18px;color:var(--teal);font-size:.8em;font-weight:600}
+        .chapter-content{flex:1;min-width:0}
+        .chapter-vis{flex-shrink:0;width:210px;align-self:center}
+        .chapter-vis svg{width:100%;height:auto;display:block;border-radius:8px;background:rgba(13,17,23,.45)}
+
+        /* Demo */
+        .demo-section{padding:56px 0 72px}
+        .demo-intro{text-align:center;color:var(--dim);margin-top:-24px;margin-bottom:28px;font-size:.93em}
+        .demo-layout{display:grid;grid-template-columns:1fr 330px;gap:24px;align-items:start}
+        @media(max-width:900px){.demo-layout{grid-template-columns:1fr}}
+        .cave-container{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+        .cave-container svg{width:100%;height:auto;display:block}
+
+        /* Panel */
+        .control-panel{display:flex;flex-direction:column;gap:16px}
+        .panel-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+        .panel-card h3{font-size:.82em;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:10px}
+
+        /* Mode Toggle */
+        .mode-toggle{display:flex;background:var(--bg);border-radius:8px;padding:3px}
+        .mode-btn{flex:1;padding:9px 10px;border:none;border-radius:6px;background:0 0;color:var(--dim);font-size:.86em;font-weight:600;cursor:pointer;transition:all .2s}
+        .mode-btn.active{background:var(--gold);color:var(--bg)}
+        .mode-btn:hover:not(.active){color:var(--text)}
+
+        /* Buttons */
+        .action-btn{width:100%;padding:13px;border:none;border-radius:8px;font-size:.97em;font-weight:600;cursor:pointer;transition:all .2s}
+        .action-btn:disabled{opacity:.3;cursor:not-allowed}
+        .btn-primary{background:var(--gold);color:var(--bg)}
+        .btn-primary:hover:not(:disabled){filter:brightness(1.12)}
+        .choice-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+        .btn-choice{padding:13px;border:2px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:.93em;font-weight:600;cursor:pointer;transition:all .2s}
+        .btn-choice:hover:not(:disabled){border-color:var(--gold);background:rgba(212,168,67,.08)}
+        .btn-choice:disabled{opacity:.3;cursor:not-allowed}
+        .btn-flip{width:100%;padding:9px;border:1px dashed var(--border);border-radius:8px;background:0 0;color:var(--dim);font-size:.83em;cursor:pointer;margin-top:8px}
+        .btn-flip:hover:not(:disabled){border-color:var(--dim);color:var(--text)}
+        .btn-flip:disabled{opacity:.3;cursor:not-allowed}
+        .btn-teal{background:var(--teal);color:var(--bg)}
+        .btn-teal:hover:not(:disabled){filter:brightness(1.1)}
+        .btn-ghost{width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:0 0;color:var(--dim);font-size:.83em;cursor:pointer;margin-top:4px}
+
+        /* Stats */
+        .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+        .stat-item{text-align:center}
+        .stat-val{font-size:1.5em;font-weight:700}
+        .stat-val.s{color:var(--teal)}.stat-val.f{color:var(--red)}
+        .stat-lbl{font-size:.75em;color:var(--dim)}
+        .prob-box{margin-top:14px;padding:12px;background:var(--bg);border-radius:8px;text-align:center}
+        .prob-val{font-size:1.05em;font-weight:700;color:var(--gold);font-family:'Courier New',monospace}
+        .prob-lbl{font-size:.78em;color:var(--dim);margin-top:3px}
+        .prob-track{height:5px;background:var(--surface);border-radius:3px;margin-top:8px;overflow:hidden}
+        .prob-fill{height:100%;background:var(--red);border-radius:3px;transition:width .5s ease}
+
+        /* Log */
+        .log-box{max-height:170px;overflow-y:auto;font-size:.83em}
+        .log-box::-webkit-scrollbar{width:4px}
+        .log-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+        .log-e{padding:3px 0;color:var(--dim);border-bottom:1px solid rgba(255,255,255,.03)}
+        .log-e.s{color:var(--teal)}.log-e.f{color:var(--red)}.log-e.i{color:var(--gold)}
+
+        /* Mapping */
+        .mapping-section{padding:56px 0 72px;border-top:1px solid var(--border)}
+        .mapping-intro{text-align:center;color:var(--dim);margin-top:-24px;margin-bottom:32px;max-width:640px;margin-left:auto;margin-right:auto;font-size:.93em}
+        .concept-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+        @media(max-width:768px){.concept-cards{grid-template-columns:1fr}}
+        .concept-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;border-top:3px solid var(--teal)}
+        .concept-card h3{font-family:Georgia,serif;font-size:1.1em;margin-bottom:8px}
+        .concept-card .story{font-size:.95em;color:var(--dim);margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+        .concept-card .formal{font-size:.95em;color:var(--teal);font-style:italic}
+
+        footer{text-align:center;padding:36px 24px;color:var(--dim);font-size:.82em;border-top:1px solid var(--border)}
+        @media(max-width:600px){.hero h1{font-size:2em}.chapter{flex-direction:column;gap:10px}.chapter-vis{display:none}.stat-grid{grid-template-columns:repeat(2,1fr)}}
+
+        .cave-label{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-weight:600}
+    </style>
+</head>
+<body>
+
+<header class="hero">
+    <div class="container">
+        <h1>The Strange Cave of Ali Baba</h1>
+        <p class="subtitle">An interactive journey through Zero-Knowledge Proof (ZKP), told through the tale of a magical cave</p>
+        <p class="credit"></p>
+    </div>
+</header>
+
+<section class="story-section">
+    <div class="container">
+        <h2>The Story</h2>
+        <div class="chapters">
+            <div class="chapter">
+                <div class="chapter-num">1</div>
+                <div class="chapter-content">
+                    <h3>The Strange Cave</h3>
+                    <p>In Baghdad, old Ali Baba chased thieves into a cave that forked into two passages, left and right. Each passage ended in a dead end, yet every thief who fled inside vanished without a trace. After forty thieves escaped this way, Ali Baba knew it could not be mere luck.</p>
+                    <span class="zk-badge">The Setup: A secret exists</span>
+                </div>
+                <div class="chapter-vis">
+                    <svg viewBox="0 0 210 150" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="105" y1="18" x2="105" y2="50" stroke="var(--cave)" stroke-width="18" stroke-linecap="round"/>
+                        <polyline points="105,50 55,50 55,112" stroke="var(--cave)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <polyline points="105,50 155,50 155,112" stroke="var(--cave)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <text x="105" y="12" text-anchor="middle" fill="var(--dim)" font-size="8" font-weight="600">ENTRY</text>
+                        <text x="55" y="128" text-anchor="middle" fill="var(--red)" font-size="15" font-weight="bold">?</text>
+                        <text x="155" y="128" text-anchor="middle" fill="var(--red)" font-size="15" font-weight="bold">?</text>
+                        <text x="55" y="142" text-anchor="middle" fill="var(--dim)" font-size="7.5">Dead End</text>
+                        <text x="155" y="142" text-anchor="middle" fill="var(--dim)" font-size="7.5">Dead End</text>
+                        <circle cx="105" cy="25" r="5" fill="var(--dim)" opacity=".65"/>
+                        <text x="105" y="27.5" text-anchor="middle" fill="var(--bg)" font-size="5" font-weight="bold">T</text>
+                    </svg>
+                </div>
+            </div>
+            <div class="chapter">
+                <div class="chapter-num">2</div>
+                <div class="chapter-content">
+                    <h3>The Secret</h3>
+                    <p>Hiding inside the cave, Ali Baba discovered the truth: the magic words "Open Sesame" slid open a hidden wall connecting the two dead ends. Anyone who knew the words could enter one side and exit the other. Ali Baba changed the magic words and caught the next thief.</p>
+                    <span class="zk-badge">The Secret = A private key or password</span>
+                </div>
+                <div class="chapter-vis">
+                    <svg viewBox="0 0 210 150" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="105" y1="18" x2="105" y2="50" stroke="var(--cave)" stroke-width="18" stroke-linecap="round"/>
+                        <polyline points="105,50 55,50 55,105" stroke="var(--cave)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <polyline points="105,50 155,50 155,105" stroke="var(--cave)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <line x1="55" y1="105" x2="155" y2="105" stroke="var(--glow)" stroke-width="18" stroke-linecap="round" opacity=".65"/>
+                        <circle cx="78" cy="97" r="2.5" fill="var(--glow)" opacity=".8"/>
+                        <circle cx="105" cy="94" r="3" fill="var(--glow)" opacity=".9"/>
+                        <circle cx="132" cy="98" r="2" fill="var(--glow)" opacity=".7"/>
+                        <path d="M 55,72 L 55,105 L 155,105 L 155,72" fill="none" stroke="var(--glow)" stroke-width="1.5" stroke-dasharray="4,3" opacity=".45"/>
+                        <text x="105" y="12" text-anchor="middle" fill="var(--dim)" font-size="8" font-weight="600">ENTRY</text>
+                        <text x="105" y="135" text-anchor="middle" fill="var(--glow)" font-size="9" font-weight="600">"Open Sesame!"</text>
+                    </svg>
+                </div>
+            </div>
+            <div class="chapter">
+                <div class="chapter-num">3</div>
+                <div class="chapter-content">
+                    <h3>Mick Ali's Challenge</h3>
+                    <p>Centuries later, Ali Baba's descendant Mick Ali wanted to prove to a television reporter that he knew the cave's secret, but without revealing the magic words themselves. His goal: convince the world he possesses the knowledge, while keeping the secret safe.</p>
+                    <span class="zk-badge">The ZKP Challenge: Prover (P) proves without revealing</span>
+                </div>
+                <div class="chapter-vis">
+                    <svg viewBox="0 0 210 150" xmlns="http://www.w3.org/2000/svg">
+                        <line x1="105" y1="35" x2="105" y2="58" stroke="var(--cave)" stroke-width="18" stroke-linecap="round"/>
+                        <polyline points="105,58 58,58 58,110" stroke="var(--cave)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <polyline points="105,58 152,58 152,110" stroke="var(--cave)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        <line x1="58" y1="110" x2="152" y2="110" stroke="var(--wall)" stroke-width="18" stroke-linecap="round"/>
+                        <text x="105" y="114" text-anchor="middle" fill="var(--dim)" font-size="16">&#x1f512;</text>
+                        <circle cx="105" cy="18" r="9" fill="var(--gold)"/>
+                        <text x="105" y="22" text-anchor="middle" fill="var(--bg)" font-size="9" font-weight="bold">P</text>
+                        <text x="105" y="142" text-anchor="middle" fill="var(--dim)" font-size="8">Prove without revealing</text>
+                    </svg>
+                </div>
+            </div>
+            <div class="chapter">
+                <div class="chapter-num">4</div>
+                <div class="chapter-content">
+                    <h3>The Demonstration</h3>
+                    <p>Mick enters the cave alone and picks a passage at random. The reporter, unable to see which way Mick went, walks to the fork and calls out a side: "Come out on the left!" or "Come out on the right!" If Mick knows the secret, he can always obey by opening the wall when needed. They repeat this forty times.</p>
+                    <span class="zk-badge">Interactive Proof: P (Mick) convinces V (Reporter)</span>
+                </div>
+            </div>
+            <div class="chapter">
+                <div class="chapter-num">5</div>
+                <div class="chapter-content">
+                    <h3>The Jealous Reporter</h3>
+                    <p>A rival reporter filmed a fake version using a look-alike who did not know the secret. By editing out the failed attempts, the fake tape looked identical to the real one. Since no one could tell the tapes apart, the real tape proved Mick's knowledge without transferring any information about the secret itself.</p>
+                    <span class="zk-badge">Simulation Argument = Zero-Knowledge Property</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="demo-section" id="demo">
+    <div class="container">
+        <h2>Try the Cave Protocol</h2>
+        <p class="demo-intro">You are the <strong>Verifier (V)</strong>. Mick Ali is the <strong>Prover (P)</strong>. Both share a common statement: "P knows the magic words." Can P convince you without revealing them?</p>
+        <div class="demo-layout">
+            <div class="cave-container">
+                <svg id="cave" viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="600" height="500" fill="#0d1117" rx="12"/>
+                    <defs>
+                        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                        <filter id="cglow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                    </defs>
+
+                    <path d="M235,28 L365,28 Q372,28 372,35 L372,108 L497,108 Q507,108 507,118 L507,458 Q507,468 497,468 L103,468 Q93,468 93,458 L93,118 Q93,108 103,108 L228,108 L228,35 Q228,28 235,28Z" fill="#1a140e" opacity=".55"/>
+
+                    <line x1="155" y1="420" x2="445" y2="420" stroke="var(--cave)" stroke-width="52" stroke-linecap="round" opacity=".45"/>
+                    <line x1="300" y1="52" x2="300" y2="155" stroke="var(--cave)" stroke-width="52" stroke-linecap="round"/>
+                    <polyline points="300,155 155,155 155,420" stroke="var(--cave)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <polyline points="300,155 445,155 445,420" stroke="var(--cave)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+                    <g id="wallG">
+                        <rect id="wall" x="183" y="396" width="234" height="48" rx="4" fill="var(--wall)" stroke="#5c452e" stroke-width="2"/>
+                        <line x1="213" y1="398" x2="213" y2="442" stroke="#5c452e" stroke-width="1.5" opacity=".5"/>
+                        <line x1="248" y1="398" x2="248" y2="442" stroke="#5c452e" stroke-width="1.5" opacity=".5"/>
+                        <line x1="283" y1="398" x2="283" y2="442" stroke="#5c452e" stroke-width="1.5" opacity=".5"/>
+                        <line x1="318" y1="398" x2="318" y2="442" stroke="#5c452e" stroke-width="1.5" opacity=".5"/>
+                        <line x1="353" y1="398" x2="353" y2="442" stroke="#5c452e" stroke-width="1.5" opacity=".5"/>
+                        <line x1="388" y1="398" x2="388" y2="442" stroke="#5c452e" stroke-width="1.5" opacity=".5"/>
+                    </g>
+
+                    <g id="sparkles"></g>
+
+                    <text x="300" y="32" text-anchor="middle" fill="var(--text)" font-size="13" class="cave-label" opacity=".85">ENTRANCE</text>
+                    <text x="108" y="295" text-anchor="middle" fill="var(--text)" font-size="12" class="cave-label" opacity=".6" transform="rotate(-90,108,295)">LEFT PATH</text>
+                    <text x="492" y="295" text-anchor="middle" fill="var(--text)" font-size="12" class="cave-label" opacity=".6" transform="rotate(90,492,295)">RIGHT PATH</text>
+                    <text id="wallLbl" x="300" y="483" text-anchor="middle" fill="var(--dim)" font-size="11.5" class="cave-label">SECRET WALL</text>
+
+                    <circle cx="300" cy="155" r="5" fill="var(--cave)" stroke="var(--bg)" stroke-width="2"/>
+                    <text x="326" y="146" fill="var(--dim)" font-size="10.5" class="cave-label">Fork</text>
+
+                    <!-- Fog overlay -->
+                    <rect id="fog" x="90" y="128" width="420" height="345" rx="6" fill="#0d1117" opacity="0" pointer-events="none"/>
+                    <text id="fogQ" x="300" y="310" text-anchor="middle" fill="var(--gold)" font-size="52" font-weight="bold" opacity="0" pointer-events="none">?</text>
+
+                    <!-- Reporter annotation -->
+                    <g id="annot" opacity="0">
+                        <rect x="238" y="40" width="124" height="82" rx="6" fill="none" stroke="var(--teal)" stroke-width="1.8" stroke-dasharray="5,4"/>
+                        <text x="300" y="78" text-anchor="middle" fill="var(--teal)" font-size="9.5" class="cave-label">V (Verifier) sees</text>
+                        <text x="300" y="90" text-anchor="middle" fill="var(--teal)" font-size="9.5" class="cave-label">only this area</text>
+                    </g>
+
+                    <!-- Mick -->
+                    <circle id="mick" cx="300" cy="52" r="13" fill="var(--gold)" filter="url(#cglow)"/>
+                    <text id="mickL" x="300" y="56.5" text-anchor="middle" fill="var(--bg)" font-size="10.5" font-weight="bold" pointer-events="none">P</text>
+
+                    <!-- Result badge -->
+                    <g id="badge" opacity="0">
+                        <rect x="190" y="225" width="220" height="52" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
+                        <text id="badgeTxt" x="300" y="258" text-anchor="middle" fill="var(--text)" font-size="19" font-weight="bold" class="cave-label"></text>
+                    </g>
+                </svg>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-card">
+                    <h3>Mode</h3>
+                    <div class="mode-toggle">
+                        <button class="mode-btn active" data-mode="knows" onclick="setMode('knows')">Honest P</button>
+                        <button class="mode-btn" data-mode="impostor" onclick="setMode('impostor')">Dishonest P</button>
+                    </div>
+                    <p id="modeDesc" style="font-size:.8em;color:var(--dim);margin-top:9px">Prover (P) is honest and knows the magic words.</p>
+                </div>
+
+                <div class="panel-card">
+                    <h3>Actions</h3>
+                    <button class="action-btn btn-primary" id="btnStart" onclick="startRound()">Start Round</button>
+                    <div class="choice-btns">
+                        <button class="btn-choice" id="btnL" onclick="makeChoice('left')" disabled>&larr; Left</button>
+                        <button class="btn-choice" id="btnR" onclick="makeChoice('right')" disabled>Right &rarr;</button>
+                    </div>
+                    <button class="btn-flip" id="btnFlip" onclick="flipCoin()" disabled>Flip a coin</button>
+                    <button class="action-btn btn-teal" id="btnNext" onclick="nextRound()" style="margin-top:10px;display:none">Next Round</button>
+                    <button class="btn-ghost" onclick="resetAll()">Reset All</button>
+                </div>
+
+                <div class="panel-card">
+                    <h3>Statistics</h3>
+                    <div class="stat-grid">
+                        <div class="stat-item"><div class="stat-val" id="sR">0</div><div class="stat-lbl">Rounds</div></div>
+                        <div class="stat-item"><div class="stat-val s" id="sS">0</div><div class="stat-lbl">Successes</div></div>
+                        <div class="stat-item"><div class="stat-val f" id="sF">0</div><div class="stat-lbl">Failures</div></div>
+                        <div class="stat-item"><div class="stat-val" id="sRate">-</div><div class="stat-lbl">Rate</div></div>
+                    </div>
+                    <div class="prob-box">
+                        <div class="prob-val" id="pVal">50%</div>
+                        <div class="prob-lbl" id="pLbl">Dishonest P's chance of convincing V after 1 round</div>
+                        <div class="prob-track"><div class="prob-fill" id="pBar" style="width:50%"></div></div>
+                        <div class="prob-lbl" id="pCmp" style="margin-top:5px"></div>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <h3>Event Log</h3>
+                    <div class="log-box" id="log"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="mapping-section">
+    <div class="container">
+        <h2>Zero-Knowledge Proof (ZKP) Properties</h2>
+        <p class="mapping-intro">A ZKP involves two parties: the <strong>Prover (P)</strong> and the <strong>Verifier (V)</strong>. Both share a common input, the statement to be proven. The cave story illustrates the three properties of ZKP.</p>
+        <div class="concept-cards">
+            <div class="concept-card">
+                <h3>Completeness</h3>
+                <p class="story"><strong>In the story:</strong> Mick Ali (P) is honest and knows the magic words, so he can always open the wall and exit from whichever side the reporter (V) requests. He succeeds every time across all 40 rounds.</p>
+                <p class="formal">If P is honest, P will eventually convince V that the statement is true.</p>
+            </div>
+            <div class="concept-card">
+                <h3>Soundness</h3>
+                <p class="story"><strong>In the story:</strong> An impostor (dishonest P) without the magic words has only a 50% chance each round. After 40 rounds, the odds of fooling V are about 1 in a trillion. The statement is false, and P cannot convince V. Try "Impostor" mode above!</p>
+                <p class="formal">P can only convince V if the statement is true.</p>
+            </div>
+            <div class="concept-card">
+                <h3>Zero-Knowledge(ness)</h3>
+                <p class="story"><strong>In the story:</strong> V (the reporter) confirms that P (Mick) knows the magic words, but never learns what the magic words actually are. The verification record (tape) can also be simulated without knowing the password, as shown by the jealous reporter using a double.</p>
+                <p class="formal">V learns nothing about the statement aside from the fact that it is true.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer><div class="container">&copy; Developed by Dr. Wang Zhiyuan for FTH387 Financial Cryptography<br>at Singapore University of Social Sciences (SUSS)</div></footer>
+
+<script>
+const W={entrance:{x:300,y:52},fork:{x:300,y:155},lTurn:{x:155,y:155},lEnd:{x:155,y:420},rTurn:{x:445,y:155},rEnd:{x:445,y:420},bMid:{x:300,y:420}};
+const ENTER_L=['entrance','fork','lTurn','lEnd'],ENTER_R=['entrance','fork','rTurn','rEnd'];
+const EXIT_L=['lEnd','lTurn','fork','entrance'],EXIT_R=['rEnd','rTurn','fork','entrance'];
+const CROSS_LR=['lEnd','bMid','rEnd'],CROSS_RL=['rEnd','bMid','lEnd'];
+
+const $=id=>document.getElementById(id);
+const mick=$('mick'),mickL=$('mickL'),wallG=$('wallG'),wallLbl=$('wallLbl');
+const sparkG=$('sparkles'),badge=$('badge'),badgeTxt=$('badgeTxt');
+const fog=$('fog'),fogQ=$('fogQ'),annot=$('annot');
+const btnStart=$('btnStart'),btnL=$('btnL'),btnR=$('btnR'),btnFlip=$('btnFlip'),btnNext=$('btnNext');
+const logDiv=$('log');
+
+let st={mode:'knows',phase:'ready',side:null,chosen:null,rounds:0,ok:0,fail:0,gen:0};
+
+function lerp(a,b,t){return a+(b-a)*t}
+function ease(t){return t<.5?2*t*t:-1+(4-2*t)*t}
+
+function moveTo(x,y,dur){
+    return new Promise(res=>{
+        const sx=+mick.getAttribute('cx'),sy=+mick.getAttribute('cy'),t0=performance.now();
+        (function frame(now){
+            const t=Math.min((now-t0)/dur,1),e=ease(t),cx=lerp(sx,x,e),cy=lerp(sy,y,e);
+            mick.setAttribute('cx',cx);mick.setAttribute('cy',cy);
+            mickL.setAttribute('x',cx);mickL.setAttribute('y',cy+4.5);
+            t<1?requestAnimationFrame(frame):res();
+        })(t0);
+    });
+}
+
+async function path(wps,spd=380){
+    const g=st.gen;
+    for(let i=0;i<wps.length-1;i++){
+        if(st.gen!==g)return false;
+        const p=W[wps[i+1]];
+        await moveTo(p.x,p.y,spd);
+    }
+    return st.gen===g;
+}
+
+function setPos(wp){const p=W[wp];mick.setAttribute('cx',p.x);mick.setAttribute('cy',p.y);mickL.setAttribute('x',p.x);mickL.setAttribute('y',p.y+4.5)}
+
+function showFog(){fog.style.transition='opacity .5s';fog.style.opacity='.92';fogQ.style.transition='opacity .5s .15s';fogQ.style.opacity='1'}
+function hideFog(){fog.style.transition='opacity .4s';fog.style.opacity='0';fogQ.style.transition='opacity .2s';fogQ.style.opacity='0'}
+
+async function openWall(){
+    return new Promise(res=>{
+        wallG.style.transition='opacity .55s ease';wallG.style.opacity='0';
+        wallLbl.textContent='WALL OPENED!';wallLbl.setAttribute('fill','var(--glow)');
+        sparkle();setTimeout(res,600);
+    });
+}
+function closeWall(){wallG.style.transition='opacity .25s';wallG.style.opacity='1';wallLbl.textContent='SECRET WALL';wallLbl.setAttribute('fill','var(--dim)')}
+
+function sparkle(){
+    for(let i=0;i<14;i++){
+        setTimeout(()=>{
+            const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+            const x=195+Math.random()*210,y=415+(Math.random()-.5)*24;
+            c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',2+Math.random()*3);c.setAttribute('fill','var(--glow)');
+            sparkG.appendChild(c);
+            const t0=performance.now();
+            (function f(now){
+                const t=(now-t0)/750;
+                if(t>=1){c.remove();return}
+                c.style.opacity=String(1-t);c.setAttribute('r',String(2+t*9));c.setAttribute('cy',String(y-t*22));
+                requestAnimationFrame(f);
+            })(t0);
+        },i*50);
+    }
+}
+
+function showBadge(text,ok){
+    badgeTxt.textContent=text;badgeTxt.setAttribute('fill',ok?'var(--teal)':'var(--red)');
+    badge.querySelector('rect').setAttribute('stroke',ok?'var(--teal)':'var(--red)');badge.style.opacity='1';
+}
+function hideBadge(){badge.style.opacity='0'}
+
+function setMode(m){
+    st.mode=m;
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+    $('modeDesc').textContent=m==='knows'?'Prover (P) is honest and knows the magic words.':'Dishonest P does NOT know the magic words. Can only guess.';
+    mick.setAttribute('fill',m==='knows'?'var(--gold)':'var(--red)');
+    resetAll();
+}
+
+async function startRound(){
+    if(st.phase!=='ready')return;
+    st.phase='entering';st.gen++;
+    const g=st.gen;
+    hideBadge();
+    btnStart.disabled=true;btnStart.style.display='none';btnNext.style.display='none';
+
+    st.side=Math.random()<.5?'left':'right';
+    log('Prover (P) enters the cave...','i');
+    annot.style.opacity='.55';
+
+    const ok=await path(st.side==='left'?ENTER_L:ENTER_R,320);
+    if(!ok)return;
+
+    showFog();
+    log('P has disappeared inside. Verifier (V), call a side!','');
+    st.phase='choosing';
+    btnL.disabled=false;btnR.disabled=false;btnFlip.disabled=false;
+}
+
+function flipCoin(){
+    const s=Math.random()<.5?'left':'right';
+    log('Coin flip: "'+s+'"','i');
+    makeChoice(s);
+}
+
+async function makeChoice(side){
+    if(st.phase!=='choosing')return;
+    st.phase='resolving';st.chosen=side;
+    const g=st.gen;
+    btnL.disabled=true;btnR.disabled=true;btnFlip.disabled=true;
+    log('V calls: "Come out on the '+side+'!"','i');
+
+    await new Promise(r=>setTimeout(r,350));
+    if(st.gen!==g)return;
+    hideFog();
+    await new Promise(r=>setTimeout(r,300));
+    if(st.gen!==g)return;
+
+    const same=st.chosen===st.side;
+
+    if(same){
+        const ok=await path(side==='left'?EXIT_L:EXIT_R,340);
+        if(!ok)return;roundOk();
+    }else if(st.mode==='knows'){
+        log('P whispers the magic words...','i');
+        await openWall();
+        if(st.gen!==g)return;
+        const ok1=await path(st.side==='left'?CROSS_LR:CROSS_RL,350);
+        if(!ok1)return;
+        const ok2=await path(side==='left'?EXIT_L:EXIT_R,340);
+        if(!ok2)return;
+        closeWall();roundOk();
+    }else{
+        await new Promise(r=>setTimeout(r,400));
+        if(st.gen!==g)return;
+        roundFail();
+    }
+}
+
+function roundOk(){
+    st.phase='result';st.rounds++;st.ok++;
+    showBadge('P SUCCEEDS',true);log('P exits successfully! V is convinced.','s');
+    annot.style.opacity='0';updateStats();btnNext.style.display='block';
+}
+function roundFail(){
+    st.phase='result';st.rounds++;st.fail++;
+    showBadge('P FAILS',false);log('P is stuck! Dishonest P exposed by V!','f');
+    annot.style.opacity='0';updateStats();btnNext.style.display='block';
+}
+
+function nextRound(){
+    st.phase='ready';hideBadge();hideFog();setPos('entrance');closeWall();
+    btnStart.style.display='block';btnStart.disabled=false;btnNext.style.display='none';
+}
+
+function resetAll(){
+    st.phase='ready';st.rounds=0;st.ok=0;st.fail=0;st.side=null;st.chosen=null;st.gen++;
+    setPos('entrance');closeWall();hideBadge();hideFog();annot.style.opacity='0';
+    btnStart.style.display='block';btnStart.disabled=false;
+    btnL.disabled=true;btnR.disabled=true;btnFlip.disabled=true;btnNext.style.display='none';
+    logDiv.innerHTML='';updateStats();
+}
+
+function updateStats(){
+    $('sR').textContent=st.rounds;$('sS').textContent=st.ok;$('sF').textContent=st.fail;
+    $('sRate').textContent=st.rounds>0?Math.round(st.ok/st.rounds*100)+'%':'-';
+    const n=Math.max(st.rounds,1),p=Math.pow(.5,n),pp=p*100;
+    let txt;
+    if(pp>=1)txt=pp.toFixed(1)+'%';
+    else if(pp>=.01)txt=pp.toFixed(3)+'%';
+    else txt='(1/2)'+sup(n)+' = 1/'+big(Math.pow(2,n));
+    $('pVal').textContent=txt;
+    $('pLbl').textContent="Dishonest P's chance of convincing V after "+n+' round'+(n>1?'s':'');
+    $('pBar').style.width=Math.max(pp,.4)+'%';
+    $('pCmp').textContent=cmp(n);
+}
+
+function sup(n){const s='⁰¹²³⁴⁵⁶⁷⁸⁹';return String(n).split('').map(d=>s[+d]).join('')}
+function big(n){
+    if(n>=1e12)return Math.round(n/1e12)+' trillion';if(n>=1e9)return Math.round(n/1e9)+' billion';
+    if(n>=1e6)return Math.round(n/1e6)+' million';return Math.round(n).toLocaleString();
+}
+function cmp(n){
+    if(n<=1)return'Same odds as guessing a coin flip';
+    if(n<=4)return'Like guessing '+n+' coin flips in a row';
+    if(n<=8)return'About 1 in '+Math.round(Math.pow(2,n));
+    if(n<=13)return'Less likely than a specific card from a shuffled deck';
+    if(n<=20)return'About 1 in '+big(Math.pow(2,n));
+    if(n<=30)return'Less likely than a one-in-a-billion event';
+    if(n<=40)return'Virtually impossible: about 1 in a trillion';
+    return'Astronomically unlikely, beyond any real-world chance';
+}
+
+function log(msg,t){
+    const d=document.createElement('div');d.className='log-e'+(t?' '+t:'');d.textContent=msg;
+    logDiv.prepend(d);if(logDiv.children.length>40)logDiv.removeChild(logDiv.lastChild);
+}
+
+updateStats();
+</script>
+</body>
+</html>
